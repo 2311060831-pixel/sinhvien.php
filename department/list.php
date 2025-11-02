@@ -4,38 +4,26 @@ require_once '../connect.php';
 // Lấy từ khóa tìm kiếm nếu có
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// Câu SQL mới — KHÔNG JOIN 3 bảng cùng lúc để tránh nhân bản
 $sql = "SELECT 
-    d.id,
-    d.department_code,
-    d.department_name,
-    (SELECT COUNT(DISTINCT s.id) FROM students s WHERE s.department_id = d.id) AS student_count,
-    (SELECT COUNT(DISTINCT t.id) FROM teachers t WHERE t.department_id = d.id) AS teacher_count,
-    (SELECT COUNT(DISTINCT c.id) FROM classes c WHERE c.department_id = d.id) AS class_count
+    d.id, 
+    d.department_code, 
+    d.department_name, 
+    COUNT(DISTINCT s.id) AS student_count, 
+    COUNT(DISTINCT t.id) AS teacher_count, 
+    COUNT(DISTINCT c.id) AS class_count
 FROM departments d
+LEFT JOIN students s ON d.id = s.department_id
+LEFT JOIN teachers t ON d.id = t.department_id
+LEFT JOIN classes c ON d.id = c.department_id
 WHERE 1=1";
 
-// Nếu có tìm kiếm thì thêm điều kiện LIKE
-$params = [];
-$types = '';
-
 if ($search) {
-    $sql .= " AND (d.department_code LIKE ? OR d.department_name LIKE ?)";
-    $search_param = "%$search%";
-    $params[] = &$search_param;
-    $params[] = &$search_param;
-    $types .= "ss";
+    $sql .= " AND (d.department_code LIKE '%$search%' OR d.department_name LIKE '%$search%')";
 }
 
-// Sắp xếp theo mã khoa
-$sql .= " ORDER BY d.department_code";
+$sql .= " GROUP BY d.id, d.department_code, d.department_name ORDER BY d.department_code";
 
-$stmt = mysqli_prepare($connection, $sql);
-if ($search) {
-    mysqli_stmt_bind_param($stmt, $types, ...$params);
-}
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
+$result = mysqli_query($connection, $sql);
 ?>
 
 <!DOCTYPE html>
@@ -45,45 +33,27 @@ $result = mysqli_stmt_get_result($stmt);
     <title>Quản lý Khoa</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        /* Internal CSS cho light theme */
         body {
             font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
+            background-color: #f5f7fa;
             margin: 0;
             padding: 0;
         }
         h1 {
             text-align: center;
-            margin: 20px 0;
             color: #333;
+            margin: 20px 0;
         }
         .container {
             width: 90%;
             margin: 0 auto;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-            box-shadow: 0 0 8px rgba(0,0,0,0.1);
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #e0e0e0;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
-        }
         .search-box {
-            margin: 15px 0;
             text-align: right;
+            margin-bottom: 15px;
         }
-        .search-box input[type="text"] {
-            padding: 6px 10px;
+        .search-box input {
+            padding: 6px;
             width: 200px;
         }
         .search-box button {
@@ -96,22 +66,30 @@ $result = mysqli_stmt_get_result($stmt);
         .search-box button:hover {
             background-color: #2980b9;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #eaeaea;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
         .actions a {
             color: #3498db;
             text-decoration: none;
             margin: 0 5px;
         }
-            border-top: 1px solid #e9ecef;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #6c757d;
-        }
-        .empty-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-            opacity: 0.3;
+        .actions a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
